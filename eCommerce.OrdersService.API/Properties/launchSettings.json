@@ -16,7 +16,9 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7235;http://localhost:5105",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "MongoDbSettings__ConnectionString": "mongodb://localhost:27017",
+        "MongoDbSettings__DatabaseName": "eCommerce.Orders"
       }
     }
   }
