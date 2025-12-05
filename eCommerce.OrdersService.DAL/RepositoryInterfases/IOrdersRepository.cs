@@ -1,4 +1,6 @@
-﻿using eCommerce.OrdersService.DAL.Entities;
+﻿using System.Linq.Expressions;
+using eCommerce.OrdersService.DAL.Entities;
+using MongoDB.Driver;
 
 namespace eCommerce.OrdersService.DAL.RepositoryInterfases;
 
@@ -12,12 +14,26 @@ public interface IOrdersRepository
     Task<Order?> GetByIdAsync(Guid id); 
     
     /// <summary>
+    /// Get list of orders by filter
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <returns>list of orders that matched the filter</returns>
+    Task<IEnumerable<Order>> GetOrdersByConditionAsync(FilterDefinition<Order> filter);
+    
+    /// <summary>
+    /// Get an order by filter
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <returns>an object that matched the filter</returns>
+    Task<Order?> GetOrderByConditionAsync(FilterDefinition<Order>  filter);
+    
+    /// <summary>
     /// Get all orders with pagination
     /// </summary>
     /// <param name="pageNumber"></param>
     /// <param name="pageSize"></param>
     /// <returns>Get all orders in range</returns>
-    Task<IEnumerable<OrderItem>> GetAllAsync(int pageNumber, int pageSize);
+    Task<IEnumerable<Order>> GetAllAsync(int pageNumber, int pageSize);
     
     /// <summary>
     /// Create new order

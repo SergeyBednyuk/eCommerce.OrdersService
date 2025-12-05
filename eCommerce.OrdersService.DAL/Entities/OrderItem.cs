@@ -7,7 +7,7 @@ public class OrderItem
 {
     [BsonId]
     [BsonRepresentation(BsonType.String)]
-    public Guid Id { get; set; }
+    public Guid _id { get; set; }
 
     [BsonRepresentation(BsonType.String)]
     public Guid ProductId { get; set; }
