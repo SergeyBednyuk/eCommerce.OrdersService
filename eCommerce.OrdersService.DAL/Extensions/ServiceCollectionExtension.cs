@@ -1,10 +1,7 @@
-﻿using eCommerce.OrdersService.DAL.Context;
-using eCommerce.OrdersService.DAL.Repositories;
+﻿using eCommerce.OrdersService.DAL.Repositories;
 using eCommerce.OrdersService.DAL.RepositoryInterfases;
-using eCommerce.OrdersService.DAL.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace eCommerce.OrdersService.DAL.Extensions;
