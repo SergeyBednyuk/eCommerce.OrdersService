@@ -20,6 +20,5 @@ public class Order
     
     [BsonRepresentation(BsonType.Decimal128)]
     public decimal Total { get; set; }
-
-    public List<OrderItem> OrderItems { get; set; } = new ();
+    public List<OrderItem> OrderItems { get; set; } = new();
 }

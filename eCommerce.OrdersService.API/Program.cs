@@ -1,5 +1,5 @@
 using eCommerce.OrdersService.API.Middlewares;
-using eCommerce.OrdersService.BLL.Extentions;
+using eCommerce.OrdersService.BLL.Extensions;
 using eCommerce.OrdersService.DAL.Extensions;
 
 namespace eCommerce.OrdersService.API;

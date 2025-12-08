@@ -16,16 +16,16 @@ public interface IOrdersRepository
     /// <summary>
     /// Get list of orders by filter
     /// </summary>
-    /// <param name="filter"></param>
+    /// <param name="filterDto"></param>
     /// <returns>list of orders that matched the filter</returns>
-    Task<IEnumerable<Order>> GetOrdersByConditionAsync(FilterDefinition<Order> filter);
+    Task<IEnumerable<Order>> GetOrdersByConditionAsync(OrderFilter filterDto);
     
     /// <summary>
     /// Get an order by filter
     /// </summary>
-    /// <param name="filter"></param>
+    /// <param name="filterDto"></param>
     /// <returns>an object that matched the filter</returns>
-    Task<Order?> GetOrderByConditionAsync(FilterDefinition<Order>  filter);
+    Task<Order?> GetOrderByConditionAsync(OrderFilter  filterDto);
     
     /// <summary>
     /// Get all orders with pagination

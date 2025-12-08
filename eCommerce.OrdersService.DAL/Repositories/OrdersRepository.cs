@@ -20,14 +20,18 @@ public class OrdersRepository : IOrdersRepository
         return await _orders.Find(filter).FirstOrDefaultAsync();
     }
 
-    public async Task<IEnumerable<Order>> GetOrdersByConditionAsync(FilterDefinition<Order> filter)
+    public async Task<IEnumerable<Order>> GetOrdersByConditionAsync(OrderFilter filterDto)
     {
+        var filter = BuildFilter(filterDto);
+
         var orders = await _orders.Find(filter).ToListAsync();
         return orders;
     }
 
-    public async Task<Order?> GetOrderByConditionAsync(FilterDefinition<Order> filter)
+    public async Task<Order?> GetOrderByConditionAsync(OrderFilter filterDto)
     {
+        var filter = BuildFilter(filterDto);
+
         var orders = await _orders.Find(filter).FirstOrDefaultAsync();
         return orders;
     }
@@ -37,10 +41,10 @@ public class OrdersRepository : IOrdersRepository
         if (pageNumber < 1 || pageSize < 1) return new List<Order>();
 
         var result = await _orders.Find(x => true)
-                                            .SortBy(x => x.OrderId)
-                                            .Skip((pageNumber - 1) * pageSize)
-                                            .Limit(pageSize)
-                                            .ToListAsync();
+            .SortBy(x => x.OrderDate)
+            .Skip((pageNumber - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
 
         return result;
     }
@@ -55,10 +59,10 @@ public class OrdersRepository : IOrdersRepository
     public async Task<Order?> UpdateAsync(Order order)
     {
         var filter = Builders<Order>.Filter.Eq(x => x.OrderId, order.OrderId);
-        
+
         // One network call. Efficient.
         var result = await _orders.ReplaceOneAsync(filter, order);
-    
+
         // If we found a match, return the NEW object (order), otherwise null.
         return result.MatchedCount > 0 ? order : null;
     }
@@ -76,5 +80,22 @@ public class OrdersRepository : IOrdersRepository
         var result = await _orders.DeleteOneAsync(filter);
 
         return result.DeletedCount > 0;
+    }
+
+    private FilterDefinition<Order> BuildFilter(OrderFilter filterDto)
+    {
+        var builder = Builders<Order>.Filter;
+        var filter = builder.Empty;
+
+        if (filterDto.OrderId.HasValue) filter &= builder.Eq(x => x.OrderId, filterDto.OrderId.Value);
+        if (filterDto.UserId.HasValue) filter &= builder.Eq(x => x.UserId, filterDto.UserId.Value);
+        // Date Range
+        if (filterDto.FromDate.HasValue) filter &= builder.Gte(x => x.OrderDate, filterDto.FromDate.Value);
+        if (filterDto.ToDate.HasValue) filter &= builder.Lte(x => x.OrderDate, filterDto.ToDate.Value);
+        // Price Range: Check Min and Max independently
+        if (filterDto.MinTotal.HasValue) filter &= builder.Gte(x => x.Total, filterDto.MinTotal.Value);
+        if (filterDto.MaxTotal.HasValue) filter &= builder.Lte(x => x.Total, filterDto.MaxTotal.Value);
+
+        return filter;
     }
 }
