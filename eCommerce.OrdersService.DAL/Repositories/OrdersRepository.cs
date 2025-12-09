@@ -24,26 +24,10 @@ public class OrdersRepository : IOrdersRepository
     {
         var filter = BuildFilter(filterDto);
 
-        var orders = await _orders.Find(filter).ToListAsync();
-        return orders;
-    }
-
-    public async Task<Order?> GetOrderByConditionAsync(OrderFilter filterDto)
-    {
-        var filter = BuildFilter(filterDto);
-
-        var orders = await _orders.Find(filter).FirstOrDefaultAsync();
-        return orders;
-    }
-
-    public async Task<IEnumerable<Order>> GetAllAsync(int pageNumber = 1, int pageSize = 10)
-    {
-        if (pageNumber < 1 || pageSize < 1) return new List<Order>();
-
-        var result = await _orders.Find(x => true)
-            .SortBy(x => x.OrderDate)
-            .Skip((pageNumber - 1) * pageSize)
-            .Limit(pageSize)
+        var result = await _orders.Find(filter)
+            .SortByDescending(x => x.OrderDate)
+            .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
+            .Limit(filterDto.PageSize)
             .ToListAsync();
 
         return result;

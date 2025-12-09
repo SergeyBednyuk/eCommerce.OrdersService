@@ -16,6 +16,7 @@ public static class ServiceCollectionExtension
         services.AddScoped<IValidator<AddOrderRequest>, AddOrderRequestValidator>();
         services.AddScoped<IValidator<UpdateOrderRequest>, UpdateOrderRequestValidator>();
         services.AddScoped<IValidator<OrderItemRequest>, OrderItemRequestValidator>();
+        services.AddScoped<IValidator<GetOrdersQuery>, GetOrdersQueryValidator>();
         
         services.AddScoped<IOrdersService, Services.OrdersService>();
         

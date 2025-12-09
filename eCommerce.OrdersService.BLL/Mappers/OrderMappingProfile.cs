@@ -39,6 +39,7 @@ public class OrderMappingProfile : Profile
             .ForMember(dest => dest._id, opt => opt.Ignore());
         
         //filters 
+        CreateMap<GetOrdersQuery, OrderFilter>();
         CreateMap<OrderFilterDto, OrderFilter>();
     }
 }

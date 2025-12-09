@@ -12,6 +12,7 @@ public class OrdersService(
     IOrdersRepository ordersRepository,
     IMapper mapper,
     ILogger<OrdersService> logger,
+    IValidator<GetOrdersQuery> getOrdersQueryValidator,
     IValidator<AddOrderRequest> addOrderRequestValidator,
     IValidator<UpdateOrderRequest> updateOrderRequestValidator) : IOrdersService
 {
@@ -20,24 +21,9 @@ public class OrdersService(
     private readonly ILogger<OrdersService> _logger = logger;
 
     //Validators
+    private readonly IValidator<GetOrdersQuery> _getOrdersQueryValidator = getOrdersQueryValidator;
     private readonly IValidator<AddOrderRequest> _addOrderRequestValidator = addOrderRequestValidator;
     private readonly IValidator<UpdateOrderRequest> _updateOrderRequestValidator = updateOrderRequestValidator;
-
-    public async Task<OrderResponse<IEnumerable<OrderDto>>> GetOrdersAsync(int page, int pageSize)
-    {
-        _logger.LogInformation("Getting orders in {page} page {pageSize} size range...");
-        var result = await _ordersRepository.GetAllAsync(page, pageSize);
-        var mappedResult = _mapper.Map<IEnumerable<OrderDto>>(result);
-        if (!result.Any())
-        {
-            logger.LogInformation("No orders found for page {Page}", page);
-            return
-                OrderResponse<IEnumerable<OrderDto>>.Success(data: mappedResult,
-                    message: $"there are no orders in {page} page and {pageSize} page size range");
-        }
-
-        return OrderResponse<IEnumerable<OrderDto>>.Success(mappedResult);
-    }
 
     public async Task<OrderResponse<OrderDto>> GetOrderAsync(Guid orderId)
     {
@@ -52,37 +38,31 @@ public class OrdersService(
         return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
     }
 
-    public async Task<OrderResponse<IEnumerable<OrderDto>>> GetOrdersByCondition(OrderFilterDto filter)
+    public async Task<OrderResponse<IEnumerable<OrderDto>>> GetOrdersAsync(GetOrdersQuery query)
     {
-        _logger.LogInformation("Getting orders with condition...");
-        var mappedFilter = _mapper.Map<OrderFilter>(filter);
+        _logger.LogInformation("Getting orders with {OrdersQuery} query", query);
+
+        var validationResult = await _getOrdersQueryValidator.ValidateAsync(query);
+        if (!validationResult.IsValid)
+        {
+            return OrderResponse<IEnumerable<OrderDto>>.Failure(null, $"validation failed of {typeof(GetOrdersQuery)}",
+                validationResult.Errors.Select(x => x.ErrorMessage));
+        }
+
+        var mappedFilter = _mapper.Map<OrderFilter>(query);
         var result = await _ordersRepository.GetOrdersByConditionAsync(mappedFilter);
         var mappedResult = _mapper.Map<IEnumerable<OrderDto>>(result);
         if (!result.Any())
         {
-            _logger.LogInformation("Orders not found");
+            _logger.LogInformation("No orders found for page {pageNumber}", query.PageNumber);
             return
                 OrderResponse<IEnumerable<OrderDto>>.Success(data: mappedResult,
-                    message: $"there are no orders for condition {mappedFilter}");
+                    message: $"there are no orders in {query.PageNumber} page and {query.PageSize} page size range");
         }
 
         return OrderResponse<IEnumerable<OrderDto>>.Success(mappedResult);
     }
 
-    public async Task<OrderResponse<OrderDto>> GetOrderByConditionAsync(OrderFilterDto filter)
-    {
-        _logger.LogInformation("Getting order with condition...");
-        var mappedFilter = _mapper.Map<OrderFilter>(filter);
-        var result = await _ordersRepository.GetOrderByConditionAsync(mappedFilter);
-        if (result is null)
-        {
-            _logger.LogInformation("Order not found");
-            return
-                OrderResponse<OrderDto>.Failure(message: $"there are no orders for condition {mappedFilter}");
-        }
-
-        return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
-    }
 
     public async Task<OrderResponse<OrderDto>> CreateOrderAsync(AddOrderRequest addOrderRequest)
     {
@@ -96,7 +76,7 @@ public class OrdersService(
         }
 
         var mappedOrder = _mapper.Map<Order>(addOrderRequest);
-        
+
         mappedOrder.Total = mappedOrder.OrderItems.Sum(x => x.TotalPrice);
 
         var result = await _ordersRepository.CreateAsync(mappedOrder);
@@ -112,7 +92,7 @@ public class OrdersService(
     public async Task<OrderResponse<OrderDto>> UpdateOrderAsync(UpdateOrderRequest updateOrderRequest)
     {
         _logger.LogInformation("Updating order {OrderId}", updateOrderRequest.OrderId);
-    
+
         var validationResult = await _updateOrderRequestValidator.ValidateAsync(updateOrderRequest);
         if (!validationResult.IsValid)
         {
@@ -120,20 +100,20 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, "Validation failed",
                 validationResult.Errors.Select(x => x.ErrorMessage));
         }
-        
+
         var existedOrder = await _ordersRepository.GetByIdAsync(updateOrderRequest.OrderId);
-        
-        if (existedOrder is null) 
+
+        if (existedOrder is null)
         {
             _logger.LogWarning("Order {OrderId} not found during update", updateOrderRequest.OrderId);
             // Fixed: Added $ for interpolation
             return OrderResponse<OrderDto>.Failure(null, $"Order with {updateOrderRequest.OrderId} id is not found");
         }
-        
+
         _mapper.Map(updateOrderRequest, existedOrder);
-        
+
         var result = await _ordersRepository.UpdateAsync(existedOrder);
-    
+
         if (result is null)
         {
             _logger.LogError("Order update failed for {OrderId}", updateOrderRequest.OrderId);
@@ -153,6 +133,6 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, $"there is no order with {orderId} id");
         }
 
-        return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
+        return OrderResponse<OrderDto>.Success(null, "Order deleted successfully");
     }
 }

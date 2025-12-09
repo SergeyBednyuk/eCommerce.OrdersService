@@ -1,6 +1,6 @@
-﻿namespace eCommerce.OrdersService.DAL.Entities;
+﻿namespace eCommerce.OrdersService.BLL.DTOs;
 
-public record OrderFilter
+public record GetOrdersQuery
 {
     public int PageNumber { get; init; } = 1;
     public int PageSize { get; init; } = 10;
