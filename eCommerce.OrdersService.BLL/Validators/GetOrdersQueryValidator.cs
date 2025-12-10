@@ -24,7 +24,7 @@ public class GetOrdersQueryValidator : AbstractValidator<GetOrdersQuery>
 
         //Price range
         RuleFor(x => x.MinTotal)
-            .LessThan(0).WithMessage("MinTotal  must be greater than 0")
+            .NotEqual(0).WithMessage("MinTotal  must be greater than 0")
             .When(x => x.MinTotal.HasValue);
 
         RuleFor(x => x.MaxTotal)
