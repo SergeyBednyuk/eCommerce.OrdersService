@@ -1,5 +1,6 @@
 ﻿using eCommerce.OrdersService.DAL.Entities;
 using eCommerce.OrdersService.DAL.RepositoryInterfases;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace eCommerce.OrdersService.DAL.Repositories;
@@ -29,6 +30,10 @@ public class OrdersRepository : IOrdersRepository
             .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
             .Limit(filterDto.PageSize)
             .ToListAsync();
+        var f1 = Builders<Order>.Filter.Empty;
+
+        // var result = await _orders.Find(f1)
+        //     .ToListAsync();
 
         return result;
     }
@@ -36,6 +41,13 @@ public class OrdersRepository : IOrdersRepository
     public async Task<Order?> CreateAsync(Order order)
     {
         order.OrderId = Guid.NewGuid();
+        order.Id = order.OrderId;
+
+        foreach (var orderItem in order.OrderItems)
+        {
+            orderItem._id =  Guid.NewGuid();
+        }
+        
         await _orders.InsertOneAsync(order);
         return order;
     }

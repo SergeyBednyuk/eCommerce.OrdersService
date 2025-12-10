@@ -6,9 +6,11 @@ namespace eCommerce.OrdersService.DAL.Entities;
 public class Order
 {
     [BsonId]
+    [BsonElement("_id")]
     [BsonRepresentation(BsonType.String)]
-    public Guid _id { get; set; }
+    public Guid Id { get; set; }
     
+    [BsonElement("OrderId")]
     [BsonRepresentation(BsonType.String)]
     public Guid OrderId { get; set; }
     
@@ -20,5 +22,5 @@ public class Order
     
     [BsonRepresentation(BsonType.Decimal128)]
     public decimal Total { get; set; }
-    public List<OrderItem> OrderItems { get; set; } = new();
+    public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

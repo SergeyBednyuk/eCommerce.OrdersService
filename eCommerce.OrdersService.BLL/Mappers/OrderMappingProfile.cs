@@ -8,37 +8,39 @@ public class OrderMappingProfile : Profile
 {
     public OrderMappingProfile()
     {
-        //responses maps
+// --- RESPONSES (Read) ---
         CreateMap<Order, OrderDto>();
-        CreateMap<OrderItem, OrderItemDto>();
-        
-        //create request
+
+        // Consolidated Item Mapping
+        CreateMap<OrderItem, OrderItemDto>()
+            .ForMember(dest => dest.UnitPrice, opt => opt.MapFrom(src => src.ItemPrice));
+        // Note: ProductId, Quantity, TotalPrice match automatically.
+
+        // --- REQUESTS (Write) ---
         CreateMap<AddOrderRequest, Order>()
             .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
-            // Will calculate in BLL
-            // .ForMember(dest => dest.OrderDate, opt => opt.MapFrom(src => src.OrderDate))
             .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(s => s.OrderItems))
-            .ForMember(dest => dest._id, opt => opt.Ignore())
+            // Security: Ignore generated fields
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.OrderId, opt => opt.Ignore())
-            .ForMember(dest => dest.Total, opt => opt.Ignore());
-        
-        //update request
-        CreateMap<UpdateOrderRequest, Order>()
-            .ForMember(dest => dest.OrderId, opt => opt.MapFrom(src => src.OrderId))
-            .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
-            .ForMember(dest => dest.OrderDate, opt => opt.MapFrom(src => src.OrderDate))
-            .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(s => s.OrderItems))
-            .ForMember(dest => dest._id, opt => opt.Ignore())
-            .ForMember(dest => dest.Total, opt => opt.Ignore());
-        
-        //order item 
+            .ForMember(dest => dest.Total, opt => opt.Ignore()) 
+            .ForMember(dest => dest.OrderDate, opt => opt.Ignore());
+
         CreateMap<OrderItemRequest, OrderItem>()
             .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.ProductId))
-            .ForMember(dest => dest.ItemPrice, opt => opt.MapFrom(src => src.UnitPrice))
+            .ForMember(dest => dest.ItemPrice, opt => opt.MapFrom(src => src.UnitPrice)) // UnitPrice -> ItemPrice
             .ForMember(dest => dest.Quantity, opt => opt.MapFrom(src => src.Quantity))
-            .ForMember(dest => dest._id, opt => opt.Ignore());
-        
-        //filters 
+            .ForMember(dest => dest._id, opt => opt.Ignore())
+            .ForMember(dest => dest.TotalPrice, opt => opt.Ignore());
+
+        // Update Mapping
+        CreateMap<UpdateOrderRequest, Order>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore()) // Never update PK
+            .ForMember(dest => dest.OrderItems, opt => opt.Ignore()) // Prevent accidental item wipe
+            .ForMember(dest => dest.Total, opt => opt.Ignore())
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+        // Filters
         CreateMap<GetOrdersQuery, OrderFilter>();
         CreateMap<OrderFilterDto, OrderFilter>();
     }

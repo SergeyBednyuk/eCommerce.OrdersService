@@ -2,6 +2,9 @@
 using eCommerce.OrdersService.DAL.RepositoryInterfases;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 
 namespace eCommerce.OrdersService.DAL.Extensions;
@@ -10,19 +13,36 @@ public static class ServiceCollectionExtension
 {
     public static IServiceCollection AddDataAccessLayer(this IServiceCollection services, IConfiguration configuration)
     {
-        string connectionStringTemplate = configuration.GetConnectionString("ConnectionStrings")!;
+        try
+        {
+            BsonSerializer.RegisterSerializer(new GuidSerializer(BsonType.String));
+        }
+        catch (BsonSerializationException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+        // 2. Connection String Logic
+        string connectionStringTemplate = configuration.GetConnectionString("DefaultConnection")!;
         var connectionString = connectionStringTemplate
             .Replace("$MONGODB_HOST", Environment.GetEnvironmentVariable("MONGODB_HOST") ?? "localhost")
-            .Replace("$MONGODB_PORT", Environment.GetEnvironmentVariable("MONGODB_PORT") ?? "27017");
+            .Replace("$MONGODB_PORT", Environment.GetEnvironmentVariable("MONGODB_PORT") ?? "27018");
 
-        services.AddSingleton<IMongoClient>(new MongoClient(connectionString));
+        var mongoClient = new MongoClient(connectionString);
+        services.AddSingleton<IMongoClient>(mongoClient);
+
+        // 3. Register Database
         services.AddScoped<IMongoDatabase>(provider =>
         {
-            var client = provider.GetRequiredService<IMongoClient>();
-            return client.GetDatabase("eCommerce.Orders");
+            var dbName = configuration["MongoDbSettings:DatabaseName"];
+            if (string.IsNullOrEmpty(dbName))
+            {
+                dbName = "OrdersDatabase"; // Matches your init.js
+            }
+
+            return mongoClient.GetDatabase(dbName);
         });
-        
-        // 4. Register Repositories
+
         services.AddScoped<IOrdersRepository, OrdersRepository>();
 
         return services;
