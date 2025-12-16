@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using eCommerce.OrdersService.BLL.DTOs;
+using eCommerce.OrdersService.BLL.HttpClients;
 using eCommerce.OrdersService.BLL.ServicesInterfaces;
 using eCommerce.OrdersService.DAL.Entities;
 using eCommerce.OrdersService.DAL.RepositoryInterfases;
@@ -14,11 +15,13 @@ public class OrdersService(
     ILogger<OrdersService> logger,
     IValidator<GetOrdersQuery> getOrdersQueryValidator,
     IValidator<AddOrderRequest> addOrderRequestValidator,
-    IValidator<UpdateOrderRequest> updateOrderRequestValidator) : IOrdersService
+    IValidator<UpdateOrderRequest> updateOrderRequestValidator, 
+    UsersMicroserviceClient usersMicroserviceClient) : IOrdersService
 {
     private readonly IOrdersRepository _ordersRepository = ordersRepository;
     private readonly IMapper _mapper = mapper;
     private readonly ILogger<OrdersService> _logger = logger;
+    private readonly UsersMicroserviceClient _usersMicroserviceClient = usersMicroserviceClient;
 
     //Validators
     private readonly IValidator<GetOrdersQuery> _getOrdersQueryValidator = getOrdersQueryValidator;
@@ -67,6 +70,8 @@ public class OrdersService(
     public async Task<OrderResponse<OrderDto>> CreateOrderAsync(AddOrderRequest addOrderRequest)
     {
         _logger.LogInformation("adding new order");
+
+        
         var validationResult = await _addOrderRequestValidator.ValidateAsync(addOrderRequest);
         if (!validationResult.IsValid)
         {
@@ -74,7 +79,13 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, "Validation failed",
                 validationResult.Errors.Select(x => x.ErrorMessage));
         }
-
+        
+        var user = await _usersMicroserviceClient.GetUserByIdAsync(addOrderRequest.UserId);
+        if (!user.IsSuccess)
+        {
+            return OrderResponse<OrderDto>.Failure(null, user.Message, user.Errors);
+        }
+        
         var mappedOrder = _mapper.Map<Order>(addOrderRequest);
 
         mappedOrder.Total = mappedOrder.OrderItems.Sum(x => x.TotalPrice);
@@ -100,6 +111,12 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, "Validation failed",
                 validationResult.Errors.Select(x => x.ErrorMessage));
         }
+        
+        var user = await _usersMicroserviceClient.GetUserByIdAsync(updateOrderRequest.UserId);
+        if (!user.IsSuccess)
+        {
+            return OrderResponse<OrderDto>.Failure(null, user.Message, user.Errors);
+        }
 
         var existedOrder = await _ordersRepository.GetByIdAsync(updateOrderRequest.OrderId);
 
@@ -119,7 +136,9 @@ public class OrdersService(
             _logger.LogError("Order update failed for {OrderId}", updateOrderRequest.OrderId);
             return OrderResponse<OrderDto>.Failure(null, "Order update failed");
         }
-
+        
+        result.Total = result.OrderItems.Sum(x => x.TotalPrice);
+        
         return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
     }
 
