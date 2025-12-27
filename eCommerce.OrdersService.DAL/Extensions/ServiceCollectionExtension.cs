@@ -25,8 +25,8 @@ public static class ServiceCollectionExtension
         // 2. Connection String Logic
         string connectionStringTemplate = configuration.GetConnectionString("DefaultConnection")!;
         var connectionString = connectionStringTemplate
-            .Replace("$MONGODB_HOST", Environment.GetEnvironmentVariable("MONGODB_HOST") ?? "localhost")
-            .Replace("$MONGODB_PORT", Environment.GetEnvironmentVariable("MONGODB_PORT") ?? "27018");
+            .Replace("$MONGODB_HOST",configuration["MONGODB_HOST"] ?? "localhost")
+            .Replace("$MONGODB_PORT", configuration["MONGODB_PORT"] ?? "27018");
 
         var mongoClient = new MongoClient(connectionString);
         services.AddSingleton<IMongoClient>(mongoClient);
@@ -37,7 +37,7 @@ public static class ServiceCollectionExtension
             var dbName = configuration["MongoDbSettings:DatabaseName"];
             if (string.IsNullOrEmpty(dbName))
             {
-                dbName = "OrdersDatabase"; // Matches your init.js
+                dbName = "OrdersDatabase"; // Matches init.js
             }
 
             return mongoClient.GetDatabase(dbName);

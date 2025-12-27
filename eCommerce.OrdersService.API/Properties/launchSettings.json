@@ -9,7 +9,8 @@
       "launchUrl": "swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "MongoDbSettings__ConnectionString": "mongodb://localhost:27018",
+        "MONGODB_HOST": "localhost",
+        "MONGODB_PORT": "27018",
         "MongoDbSettings__DatabaseName": "OrdersDatabase"
       }
     },
@@ -21,7 +22,8 @@
       "launchUrl": "swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "MongoDbSettings__ConnectionString": "mongodb://localhost:27018",
+        "MONGODB_HOST": "localhost",
+        "MONGODB_PORT": "27018",
         "MongoDbSettings__DatabaseName": "OrdersDatabase"
       }
     }
