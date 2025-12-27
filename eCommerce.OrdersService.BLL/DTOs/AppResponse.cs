@@ -4,16 +4,18 @@ public class AppResponse<T> where T : class
 {
     public bool IsSuccess { get; set; }
 
-    public T? Date { get; set; }
+    public T? Data { get; set; }
 
     public string? Message { get; set; }
 
     public IEnumerable<string>? Errors { get; set; }
+
+    public AppResponse() { }
     
     private AppResponse(bool isSuccess, T? date, string? message, IEnumerable<string>? errors)
     {
         IsSuccess = isSuccess;
-        Date = date;
+        Data = date;
         Message = message;
         Errors = errors;
     }

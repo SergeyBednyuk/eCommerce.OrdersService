@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using eCommerce.OrdersService.BLL.DTOs;
 
 namespace eCommerce.OrdersService.BLL.HttpClients;
@@ -11,7 +12,8 @@ public class UsersMicroserviceClient(HttpClient httpClient)
     public async Task<AppResponse<AppUserDto>> GetUserByIdAsync(Guid userId)
     {
         var response = await _httpClient.GetAsync($"api/users/{userId}");
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<AppUserDto>>();
+        
+        var result = await response.Content.ReadFromJsonAsync<AppResponse<AppUserDto>>(new JsonSerializerOptions() { PropertyNameCaseInsensitive = true});
 
         if (!response.IsSuccessStatusCode || result is null)
         {

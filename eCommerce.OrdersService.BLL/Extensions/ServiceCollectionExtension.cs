@@ -29,7 +29,7 @@ public static class ServiceCollectionExtension
                 //TODO base option if there are no variable
                 client.BaseAddress =
                     new Uri(
-                        $"https://{configuration["UsersMicroserviceName"]}:{configuration["UsersMicroservicePort"]}/");
+                        $"http://{configuration["UsersMicroserviceName"]}:{configuration["UsersMicroservicePort"]}/");
             });
 
         return services;

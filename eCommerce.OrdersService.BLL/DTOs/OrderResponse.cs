@@ -7,6 +7,8 @@ public class OrderResponse<T> where T : class
     public string? Message { get; set; }
     public IEnumerable<string>? Errors { get; set; }
 
+    public OrderResponse() { }
+    
     private OrderResponse(bool isSuccess, T? data, string? message, IEnumerable<string>? errors)
     {
         IsSuccess = isSuccess;
