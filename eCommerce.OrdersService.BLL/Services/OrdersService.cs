@@ -16,12 +16,14 @@ public class OrdersService(
     IValidator<GetOrdersQuery> getOrdersQueryValidator,
     IValidator<AddOrderRequest> addOrderRequestValidator,
     IValidator<UpdateOrderRequest> updateOrderRequestValidator, 
-    UsersMicroserviceClient usersMicroserviceClient) : IOrdersService
+    UsersMicroserviceClient usersMicroserviceClient,
+    ProductsMicroserviceClient productsMicroserviceClient) : IOrdersService
 {
     private readonly IOrdersRepository _ordersRepository = ordersRepository;
     private readonly IMapper _mapper = mapper;
     private readonly ILogger<OrdersService> _logger = logger;
     private readonly UsersMicroserviceClient _usersMicroserviceClient = usersMicroserviceClient;
+    private readonly ProductsMicroserviceClient _productsMicroserviceClient = productsMicroserviceClient;
 
     //Validators
     private readonly IValidator<GetOrdersQuery> _getOrdersQueryValidator = getOrdersQueryValidator;
@@ -70,7 +72,6 @@ public class OrdersService(
     public async Task<OrderResponse<OrderDto>> CreateOrderAsync(AddOrderRequest addOrderRequest)
     {
         _logger.LogInformation("adding new order");
-
         
         var validationResult = await _addOrderRequestValidator.ValidateAsync(addOrderRequest);
         if (!validationResult.IsValid)
@@ -85,6 +86,10 @@ public class OrdersService(
         {
             return OrderResponse<OrderDto>.Failure(null, user.Message, user.Errors);
         }
+        
+        for
+        
+        var reduceProductStockResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync()
         
         var mappedOrder = _mapper.Map<Order>(addOrderRequest);
 

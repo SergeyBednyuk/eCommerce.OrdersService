@@ -31,6 +31,14 @@ public static class ServiceCollectionExtension
                     new Uri(
                         $"http://{configuration["UsersMicroserviceName"]}:{configuration["UsersMicroservicePort"]}/");
             });
+        
+        services.AddHttpClient<ProductsMicroserviceClient>("ProductsApi",
+            client =>
+            {
+                client.BaseAddress =
+                    new Uri(
+                        $"http://{configuration["ProductsServiceHost"]}:{configuration["ProductsServicePort"]}/");
+            });
 
         return services;
     }
