@@ -23,7 +23,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "MONGODB_HOST": "localhost",
-        "MONGODB_PORT": "27018",
+        "MONGODB_PORT": "27017",
         "MongoDbSettings__DatabaseName": "OrdersDatabase"
       }
     }

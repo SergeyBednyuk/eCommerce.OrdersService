@@ -21,17 +21,14 @@ public static class ServiceCollectionExtension
         {
             Console.WriteLine(ex.Message);
         }
-
-        // 2. Connection String Logic
+        
         string connectionStringTemplate = configuration.GetConnectionString("DefaultConnection")!;
         var connectionString = connectionStringTemplate
             .Replace("$MONGODB_HOST",configuration["MONGODB_HOST"] ?? "localhost")
-            .Replace("$MONGODB_PORT", configuration["MONGODB_PORT"] ?? "27018");
+            .Replace("$MONGODB_PORT", configuration["MONGODB_PORT"] ?? "27017");
 
         var mongoClient = new MongoClient(connectionString);
         services.AddSingleton<IMongoClient>(mongoClient);
-
-        // 3. Register Database
         services.AddScoped<IMongoDatabase>(provider =>
         {
             var dbName = configuration["MongoDbSettings:DatabaseName"];

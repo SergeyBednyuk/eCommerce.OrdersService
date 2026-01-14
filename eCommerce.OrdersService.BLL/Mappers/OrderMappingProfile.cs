@@ -40,6 +40,10 @@ public class OrderMappingProfile : Profile
             .ForMember(dest => dest.Total, opt => opt.MapFrom(src => src))
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
+        CreateMap<OrderItemRequest, UpdateStockDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.ProductId))
+            .ForMember(dest => dest.Quantity, opt => opt.MapFrom(src => src.Quantity)).ReverseMap();
+
         // Filters
         CreateMap<GetOrdersQuery, OrderFilter>();
         CreateMap<OrderFilterDto, OrderFilter>();

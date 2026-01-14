@@ -15,60 +15,61 @@ public class ProductsMicroserviceClient(HttpClient httpClient, ILogger<ProductsM
         try
         {
             string url = $"api/products/search/batch";
-            var payload = new 
-            { 
-                Ids = ids, 
+            var payload = new
+            {
+                Ids = ids,
             };
-            
+
             var response = await _httpClient.PutAsJsonAsync(url, payload);
-            
-            var result = await response.Content.ReadFromJsonAsync<AppResponse<IEnumerable<ProductDTO>>>(new JsonSerializerOptions() { PropertyNameCaseInsensitive = true});
+
+            var result =
+                await response.Content.ReadFromJsonAsync<AppResponse<IEnumerable<ProductDTO>>>(
+                    new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
 
             if (result is not null && result.IsSuccess)
             {
                 return result;
             }
-            
+
             _logger.LogWarning($"Failed to get products for {ids.Select(x => x.ToString())} ids from Product Service");
             return AppResponse<IEnumerable<ProductDTO>>.Failure(null, result.Message, result.Errors);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Network error communicating with Product Service for {ids.Select(x => x.ToString())}");
-            return AppResponse<IEnumerable<ProductDTO>>.Failure(null, $"Network error communicating with Product Service for {ids.Select(x => x.ToString())}");
+            _logger.LogError(ex,
+                $"Network error communicating with Product Service for {ids.Select(x => x.ToString())}");
+            return AppResponse<IEnumerable<ProductDTO>>.Failure(null,
+                $"Network error communicating with Product Service for {ids.Select(x => x.ToString())}");
         }
     }
-    
-    public async Task<AppResponse<ProductDTO>> UpdateProductStockByIdAsync(Guid productId, int quantity, bool reduce = true)
+
+    public async Task<AppResponse<IEnumerable<ProductDTO>>> UpdateProductStockByIdAsync(UpdateStockRequest request)
     {
         try
         {
-            string url = $"api/products/{productId}/reduce-stock";
-            
-            var payload = new 
-            { 
-                Quantity = quantity, 
-                Reduce = reduce 
-            };
-            
-            var response = await _httpClient.PutAsJsonAsync(url, payload);
-            
-            var result = await response.Content.ReadFromJsonAsync<AppResponse<ProductDTO>>(new JsonSerializerOptions() { PropertyNameCaseInsensitive = true});
+            string url = $"api/products/stock/batch-update";
+
+            var response = await _httpClient.PutAsJsonAsync(url, request);
+
+            var result = await response.Content.ReadFromJsonAsync<AppResponse<IEnumerable<ProductDTO>>>(new JsonSerializerOptions()
+                { PropertyNameCaseInsensitive = true });
 
             if (result is not null && result.IsSuccess)
             {
                 return result;
             }
-            
-            _logger.LogWarning("Failed to adjust stock for {ProductId}. Reduce: {Reduce}. Errors: {Errors}. Message: {Message}", 
-                productId, reduce, result.Errors, result.Message);
-            
-            return AppResponse<ProductDTO>.Failure(null, result.Message, result.Errors);
+
+            _logger.LogWarning("Failed to adjust stock thought Orders API. Errore: {errors} message {message} ",
+                result.Errors, result.Message);
+
+            return AppResponse<IEnumerable<ProductDTO>>.Failure(null, result.Message, result.Errors);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Network error communicating with Product Service for {ProductId}", productId);
-            return AppResponse<ProductDTO>.Failure(null, $"Network error communicating with Product Service for {productId}");
+            _logger.LogError(ex, "Network error communicating with Product Service for {ProductIds}",
+                string.Join(", ", request.UpdateStockItems.Select(x => x.Id)));
+            return AppResponse<IEnumerable<ProductDTO>>.Failure(null,
+                $"Network error communicating with Product Service for {request.UpdateStockItems.Select(x => x.Id)}");
         }
     }
 }
