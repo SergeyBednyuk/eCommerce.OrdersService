@@ -37,7 +37,7 @@ public class OrderMappingProfile : Profile
         CreateMap<UpdateOrderRequest, Order>()
             .ForMember(dest => dest.Id, opt => opt.Ignore()) // Never update PK
             .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems)) // Prevent accidental item wipe
-            .ForMember(dest => dest.Total, opt => opt.MapFrom(src => src))
+            // .ForMember(dest => dest.Total, opt => opt.MapFrom(src => src.))
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
         CreateMap<OrderItemRequest, UpdateStockDto>()

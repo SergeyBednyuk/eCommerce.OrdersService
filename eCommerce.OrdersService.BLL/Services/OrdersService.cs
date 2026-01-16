@@ -87,12 +87,7 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, user.Message, user.Errors);
         }
 
-        //Tmp solution
-        var mappedOrderItems = new List<UpdateStockDto>();
-        foreach (var orderItem in addOrderRequest.OrderItems)
-        {
-            mappedOrderItems.Add(new UpdateStockDto(orderItem.ProductId, orderItem.Quantity));
-        }
+        var mappedOrderItems = _mapper.Map<List<UpdateStockDto>>(addOrderRequest.OrderItems);
 
         var updateStockRequest =
             new UpdateStockRequest(mappedOrderItems, Reduce: true);
@@ -111,13 +106,13 @@ public class OrdersService(
             if (result is null)
             {
                 _logger.LogInformation("Order creation failed");
-                
+
                 //rollback product db changes
                 updateStockRequest =
                     new UpdateStockRequest(mappedOrderItems, Reduce: false);
                 reduceProductStockResult =
                     await _productsMicroserviceClient.UpdateProductStockByIdAsync(updateStockRequest);
-                
+
                 return OrderResponse<OrderDto>.Failure(null, "Order creation failed");
             }
 
@@ -125,7 +120,9 @@ public class OrdersService(
         }
         else
         {
-            return OrderResponse<OrderDto>.Failure(null, $"Order creation failed because {reduceProductStockResult.Errors} error");
+            var errors = string.Join(", ", reduceProductStockResult.Errors);
+            return OrderResponse<OrderDto>.Failure(null,
+                $"Order creation failed because: {errors}");
         }
     }
 
@@ -156,7 +153,65 @@ public class OrdersService(
             return OrderResponse<OrderDto>.Failure(null, $"Order with {updateOrderRequest.OrderId} id is not found");
         }
 
+        //Tmp solution
+        var reduceOrderItemsStock = new List<UpdateStockDto>();
+        var increaseOrderItemsStock = new List<UpdateStockDto>();
+
+        var oldItems = existedOrder.OrderItems.ToDictionary(x => x.ProductId, x => x.Quantity);
+        var newItems = updateOrderRequest.OrderItems.ToDictionary(x => x.ProductId, x => x.Quantity);
+
+        foreach (var newItem in newItems)
+        {
+            if (oldItems.TryGetValue(newItem.Key, out var oldQnt))
+            {
+                if (newItem.Value > oldQnt)
+                {
+                    reduceOrderItemsStock.Add(new UpdateStockDto(newItem.Key, newItem.Value - oldQnt));
+                }
+                else if (newItem.Value < oldQnt)
+                {
+                    increaseOrderItemsStock.Add(new UpdateStockDto(newItem.Key, oldQnt - newItem.Value));
+                }
+            }
+            else
+            {
+                reduceOrderItemsStock.Add(new UpdateStockDto(newItem.Key, newItem.Value));
+            }
+        }
+
+        foreach (var oldItem in oldItems)
+        {
+            if (!newItems.ContainsKey(oldItem.Key))
+            {
+                increaseOrderItemsStock.Add(new UpdateStockDto(oldItem.Key, oldItem.Value));
+            }
+        }
+
+        if (increaseOrderItemsStock.Any())
+        {
+            var releaseResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
+                new UpdateStockRequest(increaseOrderItemsStock, Reduce: false));
+
+            if (!releaseResult.IsSuccess)
+            {
+                return OrderResponse<OrderDto>.Failure(null, "Failed to release stock during update.");
+            }
+        }
+
+        if (reduceOrderItemsStock.Any())
+        {
+            var reduceResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
+                new UpdateStockRequest(reduceOrderItemsStock, Reduce: true));
+
+            if (!reduceResult.IsSuccess)
+            {
+                return OrderResponse<OrderDto>.Failure(null, reduceResult.Message, reduceResult.Errors);
+            }
+        }
+
         _mapper.Map(updateOrderRequest, existedOrder);
+
+        existedOrder.Total = existedOrder.OrderItems.Sum(x => x.TotalPrice);
 
         var result = await _ordersRepository.UpdateAsync(existedOrder);
 
@@ -165,8 +220,6 @@ public class OrdersService(
             _logger.LogError("Order update failed for {OrderId}", updateOrderRequest.OrderId);
             return OrderResponse<OrderDto>.Failure(null, "Order update failed");
         }
-
-        result.Total = result.OrderItems.Sum(x => x.TotalPrice);
 
         return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
     }
