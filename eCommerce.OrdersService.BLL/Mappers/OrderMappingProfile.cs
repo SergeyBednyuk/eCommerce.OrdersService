@@ -20,11 +20,11 @@ public class OrderMappingProfile : Profile
         CreateMap<AddOrderRequest, Order>()
             .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
             .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(s => s.OrderItems))
+            .ForMember(dest => dest.OrderDate, opt => opt.MapFrom(src => src.OrderDate))
             // Security: Ignore generated fields
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.OrderId, opt => opt.Ignore())
-            .ForMember(dest => dest.Total, opt => opt.Ignore()) 
-            .ForMember(dest => dest.OrderDate, opt => opt.Ignore());
+            .ForMember(dest => dest.Total, opt => opt.Ignore());
 
         CreateMap<OrderItemRequest, OrderItem>()
             .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.ProductId))

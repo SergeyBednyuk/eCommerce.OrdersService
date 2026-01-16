@@ -49,7 +49,7 @@ public class ProductsMicroserviceClient(HttpClient httpClient, ILogger<ProductsM
         {
             string url = $"api/products/stock/batch-update";
 
-            var response = await _httpClient.PutAsJsonAsync(url, request);
+            var response = await _httpClient.PostAsJsonAsync(url, request);
 
             var result = await response.Content.ReadFromJsonAsync<AppResponse<IEnumerable<ProductDTO>>>(new JsonSerializerOptions()
                 { PropertyNameCaseInsensitive = true });

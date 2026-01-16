@@ -31,10 +31,7 @@ public class OrdersRepository : IOrdersRepository
             .Limit(filterDto.PageSize)
             .ToListAsync();
         var f1 = Builders<Order>.Filter.Empty;
-
-        // var result = await _orders.Find(f1)
-        //     .ToListAsync();
-
+        
         return result;
     }
 
