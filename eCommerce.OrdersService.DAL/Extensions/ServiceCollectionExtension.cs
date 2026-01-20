@@ -21,24 +21,23 @@ public static class ServiceCollectionExtension
         {
             Console.WriteLine(ex.Message);
         }
+
+        var host = configuration["MONGODB_HOST"] ?? "localhost";
+        var port = configuration["MONGODB_PORT"] ?? "27017";
+        var dbName = configuration["MongoDbSettings:DatabaseName"];
+        if (string.IsNullOrEmpty(dbName)) dbName = "OrdersDatabase";
         
-        string connectionStringTemplate = configuration.GetConnectionString("DefaultConnection")!;
-        var connectionString = connectionStringTemplate
-            .Replace("$MONGODB_HOST",configuration["MONGODB_HOST"] ?? "localhost")
-            .Replace("$MONGODB_PORT", configuration["MONGODB_PORT"] ?? "27017");
+        var connectionString = $"mongodb://root:example@{host}:{port}/?authSource={dbName}";
+
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        if (environment == "Development")
+        {
+            Console.WriteLine($"[MongoDB] Connecting to: {host}:{port}, AuthSource: {dbName}");
+        }
 
         var mongoClient = new MongoClient(connectionString);
         services.AddSingleton<IMongoClient>(mongoClient);
-        services.AddScoped<IMongoDatabase>(provider =>
-        {
-            var dbName = configuration["MongoDbSettings:DatabaseName"];
-            if (string.IsNullOrEmpty(dbName))
-            {
-                dbName = "OrdersDatabase"; // Matches init.js
-            }
-
-            return mongoClient.GetDatabase(dbName);
-        });
+        services.AddScoped<IMongoDatabase>(provider => mongoClient.GetDatabase(dbName));
 
         services.AddScoped<IOrdersRepository, OrdersRepository>();
 
