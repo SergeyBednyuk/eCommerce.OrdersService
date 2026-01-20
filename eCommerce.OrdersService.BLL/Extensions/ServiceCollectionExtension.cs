@@ -1,11 +1,13 @@
 ﻿using eCommerce.OrdersService.BLL.DTOs;
 using eCommerce.OrdersService.BLL.HttpClients;
 using eCommerce.OrdersService.BLL.Mappers;
+using eCommerce.OrdersService.BLL.Policies;
 using eCommerce.OrdersService.BLL.ServicesInterfaces;
 using eCommerce.OrdersService.BLL.Validators;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Polly;
 
 namespace eCommerce.OrdersService.BLL.Extensions;
@@ -25,37 +27,40 @@ public static class ServiceCollectionExtension
         services.AddScoped<IOrdersService, Services.OrdersService>();
 
         services.AddHttpClient<UsersMicroserviceClient>("UsersApi",
-            client =>
-            {
-                //TODO base option if there are no variable
-                client.BaseAddress =
-                    new Uri(
-                        $"http://{configuration["UsersMicroserviceName"]}:{configuration["UsersMicroservicePort"]}/");
-            }).AddPolicyHandler(
-            Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
-                .WaitAndRetryAsync(
-                    retryCount: 2,
-                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(1),
-                    //TO DO
-                    onRetry: (result, span, retryAttempt, context) => { }
-                )
-        );
+                client =>
+                {
+                    var host = configuration["UsersMicroserviceName"] ?? "localhost";
+                    var port = configuration["UsersMicroservicePort"] ?? "5129"; // Default local port
+                    client.BaseAddress = new Uri($"http://{host}:{port}/");
+                })
+                .AddPolicyHandler((provider, request) =>
+                {
+                    var logger = provider.GetRequiredService<ILogger<UsersMicroserviceClient>>();
+                    return ResiliencyPolicies.GetRetryPolicy(logger);
+                })
+                .AddPolicyHandler((provider, request) =>
+                {
+                    var logger = provider.GetRequiredService<ILogger<UsersMicroserviceClient>>();
+                    return ResiliencyPolicies.GetCircuitBreakerPolicy(logger);
+                });
 
         services.AddHttpClient<ProductsMicroserviceClient>("ProductsApi",
-            client =>
-            {
-                client.BaseAddress =
-                    new Uri(
-                        $"http://{configuration["ProductsServiceHost"]}:{configuration["ProductsServicePort"]}/");
-            }).AddPolicyHandler(
-            Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
-                .WaitAndRetryAsync(
-                    retryCount: 2,
-                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(1),
-                    //TO DO
-                    onRetry: (result, span, retryAttempt, context) => { }
-                )
-        );
+                client =>
+                {
+                    var host = configuration["ProductsServiceHost"] ?? "localhost";
+                    var port = configuration["ProductsServicePort"] ?? "5173"; // Default local port
+                    client.BaseAddress = new Uri($"http://{host}:{port}/");
+                })
+                .AddPolicyHandler((provider, request) => 
+                {
+                    var logger = provider.GetRequiredService<ILogger<ProductsMicroserviceClient>>();
+                    return ResiliencyPolicies.GetRetryPolicy(logger);
+                })
+                .AddPolicyHandler((provider, request) => 
+                {
+                    var logger = provider.GetRequiredService<ILogger<ProductsMicroserviceClient>>();
+                    return ResiliencyPolicies.GetCircuitBreakerPolicy(logger);
+                });
 
         return services;
     }
