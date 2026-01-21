@@ -20,7 +20,7 @@ public class AppResponse<T> where T : class
         Errors = errors;
     }
 
-    public static AppResponse<T> Success(T? data, string message = null)
+    public static AppResponse<T> Success(T? data, string? message = null)
     {
         return new AppResponse<T>(true, data, message, null);
     }

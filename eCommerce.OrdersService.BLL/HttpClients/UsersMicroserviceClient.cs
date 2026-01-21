@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using eCommerce.OrdersService.BLL.DTOs;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Polly.Bulkhead;
 using Polly.CircuitBreaker;
@@ -9,15 +10,29 @@ using Polly.Timeout;
 
 namespace eCommerce.OrdersService.BLL.HttpClients;
 
-public class UsersMicroserviceClient(HttpClient httpClient, ILogger<UsersMicroserviceClient> logger)
+public class UsersMicroserviceClient(
+    HttpClient httpClient,
+    ILogger<UsersMicroserviceClient> logger,
+    IDistributedCache distributedCache)
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<UsersMicroserviceClient> _logger = logger;
+    private readonly IDistributedCache _distributedCache = distributedCache;
 
     public async Task<AppResponse<AppUserDto>> GetUserByIdAsync(Guid userId)
     {
         try
         {
+            var cacheKey = $"userId: {userId}";
+            var cachedUser = await _distributedCache.GetStringAsync(cacheKey);
+
+            if (cachedUser is not null)
+            {
+                var userFromCache = JsonSerializer.Deserialize<AppUserDto>(cachedUser);
+                
+                return AppResponse<AppUserDto>.Success(userFromCache);
+            }
+
             var response = await _httpClient.GetAsync($"api/users/{userId}");
 
             if (!response.IsSuccessStatusCode)
@@ -29,7 +44,6 @@ public class UsersMicroserviceClient(HttpClient httpClient, ILogger<UsersMicrose
                 return AppResponse<AppUserDto>.Failure(null,
                     $"Users API failed with status {response.StatusCode}",
                     new[] { "Remote service error" });
-
             }
 
             var result = await response.Content.ReadFromJsonAsync<AppResponse<AppUserDto>>(new JsonSerializerOptions()

@@ -33,14 +33,35 @@ public class OrdersService(
     public async Task<OrderResponse<OrderDto>> GetOrderAsync(Guid orderId)
     {
         _logger.LogInformation("Getting order with id {orderId}...");
-        var result = await _ordersRepository.GetByIdAsync(orderId);
-        if (result is null)
+
+        var orderFromDb = await _ordersRepository.GetByIdAsync(orderId);
+        if (orderFromDb is null)
         {
             _logger.LogInformation("Order with id {orderId} not found", orderId);
             return OrderResponse<OrderDto>.Failure(null, $"there is no order with {orderId} id");
         }
 
-        return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
+        var orderDto = _mapper.Map<OrderDto>(orderFromDb);
+        
+        // get all product ids
+        var productIds = orderDto.OrderItems.Select(x => x.ProductId).Distinct();
+
+        //get products by ids
+        var productsClientResult = await _productsMicroserviceClient.GetProductsByIdsAsync(productIds);
+
+        if (productsClientResult.IsSuccess && productsClientResult.Data is not null)
+        {
+            var products = productsClientResult.Data.ToDictionary(p => p.Id, p => p);
+            foreach (var itemDto in orderDto.OrderItems)
+            {
+                if (products.TryGetValue(itemDto.ProductId, out var product))
+                {
+                    itemDto.ProductName = product.Name;
+                }
+            }
+        }
+        
+        return OrderResponse<OrderDto>.Success(orderDto);
     }
 
     public async Task<OrderResponse<IEnumerable<OrderDto>>> GetOrdersAsync(GetOrdersQuery query)
