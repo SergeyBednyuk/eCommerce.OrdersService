@@ -36,13 +36,19 @@ public static class ServiceCollectionExtension
                 .AddPolicyHandler((provider, request) =>
                 {
                     var logger = provider.GetRequiredService<ILogger<UsersMicroserviceClient>>();
+                    return ResiliencyPolicies.GetBulkheadPolicy(logger, 5, 10);
+                })
+                .AddPolicyHandler((provider, request) =>
+                {
+                    var logger = provider.GetRequiredService<ILogger<UsersMicroserviceClient>>();
                     return ResiliencyPolicies.GetRetryPolicy(logger);
                 })
                 .AddPolicyHandler((provider, request) =>
                 {
                     var logger = provider.GetRequiredService<ILogger<UsersMicroserviceClient>>();
                     return ResiliencyPolicies.GetCircuitBreakerPolicy(logger);
-                });
+                })
+                .AddPolicyHandler(ResiliencyPolicies.GetTimeoutPolicy());
 
         services.AddHttpClient<ProductsMicroserviceClient>("ProductsApi",
                 client =>
@@ -51,16 +57,22 @@ public static class ServiceCollectionExtension
                     var port = configuration["ProductsServicePort"] ?? "5173"; // Default local port
                     client.BaseAddress = new Uri($"http://{host}:{port}/");
                 })
-                .AddPolicyHandler((provider, request) => 
+                .AddPolicyHandler((provider, request) =>
+                {
+                    var logger = provider.GetRequiredService<ILogger<ProductsMicroserviceClient>>();
+                    return ResiliencyPolicies.GetBulkheadPolicy(logger, maxParallelization: 10, maxQueuingActions: 15);
+                })
+                .AddPolicyHandler((provider, request) =>
                 {
                     var logger = provider.GetRequiredService<ILogger<ProductsMicroserviceClient>>();
                     return ResiliencyPolicies.GetRetryPolicy(logger);
                 })
-                .AddPolicyHandler((provider, request) => 
+                .AddPolicyHandler((provider, request) =>
                 {
                     var logger = provider.GetRequiredService<ILogger<ProductsMicroserviceClient>>();
                     return ResiliencyPolicies.GetCircuitBreakerPolicy(logger);
-                });
+                })
+                .AddPolicyHandler(ResiliencyPolicies.GetTimeoutPolicy());
 
         return services;
     }

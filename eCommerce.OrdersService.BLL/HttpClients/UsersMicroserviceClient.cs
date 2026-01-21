@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using eCommerce.OrdersService.BLL.DTOs;
 using Microsoft.Extensions.Logging;
+using Polly.Bulkhead;
 using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace eCommerce.OrdersService.BLL.HttpClients;
 
@@ -27,7 +29,7 @@ public class UsersMicroserviceClient(HttpClient httpClient, ILogger<UsersMicrose
                 return AppResponse<AppUserDto>.Failure(null,
                     $"Users API failed with status {response.StatusCode}",
                     new[] { "Remote service error" });
-                
+
             }
 
             var result = await response.Content.ReadFromJsonAsync<AppResponse<AppUserDto>>(new JsonSerializerOptions()
@@ -40,6 +42,13 @@ public class UsersMicroserviceClient(HttpClient httpClient, ILogger<UsersMicrose
 
             return result;
         }
+        catch (BulkheadRejectedException)
+        {
+            _logger.LogError($"Users API is overloaded (Bulkhead Full). Request for user {userId} rejected.");
+
+            return AppResponse<AppUserDto>.Failure(null,
+                "The system is currently under heavy load. Please try again later.");
+        }
         catch (BrokenCircuitException)
         {
             _logger.LogError($"Users API circuit is OPEN. Request for user {userId} blocked.");
@@ -49,15 +58,20 @@ public class UsersMicroserviceClient(HttpClient httpClient, ILogger<UsersMicrose
         }
         catch (HttpRequestException ex)
         {
-            // GENERAL CATCH: Network is down, DNS failed, or connection refused (and retries failed)
             _logger.LogError(ex, $"Network error calling Users API for user {userId}");
 
             return AppResponse<AppUserDto>.Failure(null,
                 "Unable to reach Users Service. Please check network connection.");
         }
+        catch (TimeoutRejectedException ex)
+        {
+            _logger.LogError(ex, $"Timeout occurred on Users API for user {userId}");
+
+            return AppResponse<AppUserDto>.Failure(null,
+                "Timeout occurred. Users API under heavy load");
+        }
         catch (Exception ex)
         {
-            // FALLBACK: Serialization errors, timeouts, etc.
             _logger.LogError(ex, $"Unexpected error calling Users API for user {userId}");
 
             return AppResponse<AppUserDto>.Failure(null, "An unexpected error occurred while verifying user.");
