@@ -30,7 +30,6 @@ public class OrdersRepository : IOrdersRepository
             .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
             .Limit(filterDto.PageSize)
             .ToListAsync();
-        var f1 = Builders<Order>.Filter.Empty;
         
         return result;
     }

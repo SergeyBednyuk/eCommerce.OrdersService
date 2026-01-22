@@ -42,7 +42,7 @@ public class OrdersService(
         }
 
         var orderDto = _mapper.Map<OrderDto>(orderFromDb);
-        
+
         // get all product ids
         var productIds = orderDto.OrderItems.Select(x => x.ProductId).Distinct();
 
@@ -60,7 +60,7 @@ public class OrdersService(
                 }
             }
         }
-        
+
         return OrderResponse<OrderDto>.Success(orderDto);
     }
 
@@ -76,14 +76,36 @@ public class OrdersService(
         }
 
         var mappedFilter = _mapper.Map<OrderFilter>(query);
-        var result = await _ordersRepository.GetOrdersByConditionAsync(mappedFilter);
-        var mappedResult = _mapper.Map<IEnumerable<OrderDto>>(result);
-        if (!result.Any())
+        var productsResult = await _ordersRepository.GetOrdersByConditionAsync(mappedFilter);
+        if (!productsResult.Any())
         {
             _logger.LogInformation("No orders found for page {pageNumber}", query.PageNumber);
             return
-                OrderResponse<IEnumerable<OrderDto>>.Success(data: mappedResult,
+                OrderResponse<IEnumerable<OrderDto>>.Failure(data: null,
                     message: $"there are no orders in {query.PageNumber} page and {query.PageSize} page size range");
+        }
+
+        var mappedResult = _mapper.Map<IEnumerable<OrderDto>>(productsResult).ToList();
+
+        var allProductsIds = mappedResult.SelectMany(x => x.OrderItems)
+            .Select(x => x.ProductId)
+            .Distinct();
+
+        var productsClientResult = await _productsMicroserviceClient.GetProductsByIdsAsync(allProductsIds);
+
+        if (productsClientResult.IsSuccess && productsClientResult.Data is not null)
+        {
+            var products = productsClientResult.Data.ToDictionary(x => x.Id, x => x.Name);
+            foreach (var orderDto in mappedResult)
+            {
+                foreach (var orderItemDto in orderDto.OrderItems)
+                {
+                    if (products.TryGetValue(orderItemDto.ProductId, out var product))
+                    {
+                        orderItemDto.ProductName = product;
+                    }
+                }
+            }
         }
 
         return OrderResponse<IEnumerable<OrderDto>>.Success(mappedResult);
@@ -128,7 +150,6 @@ public class OrdersService(
             {
                 _logger.LogInformation("Order creation failed");
 
-                //rollback product db changes
                 updateStockRequest =
                     new UpdateStockRequest(mappedOrderItems, Reduce: false);
                 reduceProductStockResult =
@@ -141,7 +162,8 @@ public class OrdersService(
         }
         else
         {
-            var errors = string.Join(", ", reduceProductStockResult.Errors);
+            var errors = string.Join(", ", reduceProductStockResult?.Errors ??
+                                           ["Reduce Product Stock request was failed"]);
             return OrderResponse<OrderDto>.Failure(null,
                 $"Order creation failed because: {errors}");
         }
@@ -166,15 +188,12 @@ public class OrdersService(
         }
 
         var existedOrder = await _ordersRepository.GetByIdAsync(updateOrderRequest.OrderId);
-
         if (existedOrder is null)
         {
             _logger.LogWarning("Order {OrderId} not found during update", updateOrderRequest.OrderId);
-            // Fixed: Added $ for interpolation
             return OrderResponse<OrderDto>.Failure(null, $"Order with {updateOrderRequest.OrderId} id is not found");
         }
 
-        //Tmp solution
         var reduceOrderItemsStock = new List<UpdateStockDto>();
         var increaseOrderItemsStock = new List<UpdateStockDto>();
 
@@ -208,17 +227,6 @@ public class OrdersService(
             }
         }
 
-        if (increaseOrderItemsStock.Any())
-        {
-            var releaseResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
-                new UpdateStockRequest(increaseOrderItemsStock, Reduce: false));
-
-            if (!releaseResult.IsSuccess)
-            {
-                return OrderResponse<OrderDto>.Failure(null, "Failed to release stock during update.");
-            }
-        }
-
         if (reduceOrderItemsStock.Any())
         {
             var reduceResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
@@ -226,23 +234,51 @@ public class OrdersService(
 
             if (!reduceResult.IsSuccess)
             {
-                return OrderResponse<OrderDto>.Failure(null, reduceResult.Message, reduceResult.Errors);
+                return OrderResponse<OrderDto>.Failure(null,
+                    $"Update failed. Insufficient stock: {reduceResult.Message}", reduceResult.Errors);
             }
         }
 
         _mapper.Map(updateOrderRequest, existedOrder);
-
         existedOrder.Total = existedOrder.OrderItems.Sum(x => x.TotalPrice);
 
-        var result = await _ordersRepository.UpdateAsync(existedOrder);
+        var dbResult = await _ordersRepository.UpdateAsync(existedOrder);
 
-        if (result is null)
+        if (dbResult is null)
         {
-            _logger.LogError("Order update failed for {OrderId}", updateOrderRequest.OrderId);
-            return OrderResponse<OrderDto>.Failure(null, "Order update failed");
+            _logger.LogError("Database update failed for Order {OrderId}. Initiating Rollback.",
+                updateOrderRequest.OrderId);
+
+            if (reduceOrderItemsStock.Any())
+            {
+                var rollbackResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
+                    new UpdateStockRequest(reduceOrderItemsStock, Reduce: false)); // Reduce=false means Increase
+
+                if (!rollbackResult.IsSuccess)
+                {
+                    _logger.LogCritical(
+                        "CRITICAL: DATA INCONSISTENCY. Failed to rollback stock for Order {OrderId}. Products: {Products}",
+                        updateOrderRequest.OrderId, string.Join(", ", reduceOrderItemsStock.Select(x => x.Id)));
+                }
+            }
+
+            return OrderResponse<OrderDto>.Failure(null, "Order update failed due to database error");
         }
 
-        return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(result));
+        if (increaseOrderItemsStock.Any())
+        {
+            var releaseResult = await _productsMicroserviceClient.UpdateProductStockByIdAsync(
+                new UpdateStockRequest(increaseOrderItemsStock, Reduce: false));
+
+            if (!releaseResult.IsSuccess)
+            {
+                _logger.LogError(
+                    "Stock release failed for Order {OrderId}. Inventory counts may be higher than actual. Error: {Error}",
+                    updateOrderRequest.OrderId, releaseResult.Message);
+            }
+        }
+
+        return OrderResponse<OrderDto>.Success(_mapper.Map<OrderDto>(dbResult));
     }
 
     public async Task<OrderResponse<OrderDto>> DeleteOrderAsync(Guid orderId)

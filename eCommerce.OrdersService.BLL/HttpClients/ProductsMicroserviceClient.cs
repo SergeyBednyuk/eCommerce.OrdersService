@@ -66,7 +66,7 @@ public class ProductsMicroserviceClient(
 
             // 3. There are missing product. 
 
-            var response = await _httpClient.PutAsJsonAsync(url, payload);
+            var response = await _httpClient.PostAsJsonAsync(url, payload);
 
             var apiResult =
                 await response.Content.ReadFromJsonAsync<AppResponse<IEnumerable<ProductDTO>>>(
@@ -155,14 +155,16 @@ public class ProductsMicroserviceClient(
                     result.Data.Select(product => _distributedCache.RemoveAsync(GetProductCacheKey(product.Id)));
 
                 await Task.WhenAll(removeCacheTasks);
-                
+
                 return result;
             }
 
             _logger.LogWarning("Failed to adjust stock thought Orders API. Errors: {errors} message {message} ",
-                result.Errors, result.Message);
+                result?.Errors ?? ["something happened with Orders API"],
+                result?.Message ?? "something happened with Orders API");
 
-            return AppResponse<IEnumerable<ProductDTO>>.Failure(null, result?.Message ?? "Product API error", result?.Errors);
+            return AppResponse<IEnumerable<ProductDTO>>.Failure(null, result?.Message ?? "Product API error",
+                result?.Errors);
         }
         catch (BulkheadRejectedException)
         {
