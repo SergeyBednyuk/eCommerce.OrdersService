@@ -58,7 +58,7 @@ public class ProductsMicroserviceClient(
                 return AppResponse<IEnumerable<ProductDTO>>.Success(foundProducts);
             }
 
-            string url = $"api/products/search/batch";
+            string url = $"gateway/products/search/batch";
             var payload = new
             {
                 Ids = missingIds,
@@ -141,7 +141,7 @@ public class ProductsMicroserviceClient(
     {
         try
         {
-            string url = $"api/products/stock/batch-update";
+            string url = $"gateway/products/stock/batch-update";
 
             var response = await _httpClient.PostAsJsonAsync(url, request);
 

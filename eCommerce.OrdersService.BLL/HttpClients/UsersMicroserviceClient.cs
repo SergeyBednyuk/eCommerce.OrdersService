@@ -33,7 +33,7 @@ public class UsersMicroserviceClient(
                 return AppResponse<AppUserDto>.Success(userFromCache);
             }
 
-            var response = await _httpClient.GetAsync($"api/users/{userId}");
+            var response = await _httpClient.GetAsync($"gateway/users/{userId}");
 
             if (!response.IsSuccessStatusCode)
             {

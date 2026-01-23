@@ -56,6 +56,7 @@ public static class ServiceCollectionExtension
                     var host = configuration["ProductsServiceHost"] ?? "localhost";
                     var port = configuration["ProductsServicePort"] ?? "5173"; // Default local port
                     client.BaseAddress = new Uri($"http://{host}:{port}/");
+                    client.DefaultRequestHeaders.Add("ClientId", "my-test-orders-client");
                 })
                 .AddPolicyHandler((provider, request) =>
                 {
