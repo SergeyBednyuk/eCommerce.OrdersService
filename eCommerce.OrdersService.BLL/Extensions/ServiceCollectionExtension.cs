@@ -2,6 +2,7 @@
 using eCommerce.OrdersService.BLL.HttpClients;
 using eCommerce.OrdersService.BLL.Mappers;
 using eCommerce.OrdersService.BLL.Policies;
+using eCommerce.OrdersService.BLL.Services;
 using eCommerce.OrdersService.BLL.ServicesInterfaces;
 using eCommerce.OrdersService.BLL.Validators;
 using FluentValidation;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Polly;
+using RabbitMQ.Client;
 
 namespace eCommerce.OrdersService.BLL.Extensions;
 
@@ -80,6 +82,47 @@ public static class ServiceCollectionExtension
         {
             options.Configuration = $"{configuration["REDIS_HOST"]}:{configuration["REDIS_PORT"]}";
         });
+        
+        services.AddSingleton<IConnectionFactory>(sp => new ConnectionFactory()
+        {
+            HostName = configuration["RABBITMQ_HOST"] ?? "localhost",
+            Port = Int32.TryParse(configuration["RABBITMQ_PORT"], out int p) && p != 0 ? p : 5672,
+            UserName = configuration["RABBITMQ_DEFAULT_USER"] ?? "user",
+            Password = configuration["RABBITMQ_DEFAULT_PASS"] ?? "password"
+        });
+        
+        services.AddSingleton<IConnection>(sp =>
+        {
+            var factory = sp.GetRequiredService<IConnectionFactory>();
+            var logger = sp.GetRequiredService<ILogger<ProductCreatedConsumer>>();
+
+            int retryCount = 0;
+            while (retryCount < 5)
+            {
+                try
+                {
+                    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    logger.LogWarning(ex, "RabbitMQ connection failed. Retrying {RetryCount}/5 in 2 seconds...",
+                        retryCount);
+
+                    if (retryCount >= 5)
+                    {
+                        throw;
+                    }
+
+                    Thread.Sleep(2000);
+                }
+            }
+
+            throw new InvalidOperationException("Could not connect to RabbitMQ.");
+        });
+        
+        // Register the Consumer Service
+        services.AddHostedService<ProductCreatedConsumer>();
 
         return services;
     }
